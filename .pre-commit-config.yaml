@@ -1,0 +1,67 @@
+repos:
+  - repo: "https://github.com/pre-commit/pre-commit-hooks"
+    rev: "v4.5.0"
+    hooks:
+      # general sanity checks for files
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: check-case-conflict
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+      # data files
+      - id: check-toml
+
+      # Git checks
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+      # Python checks
+      - id: check-ast
+      - id: debug-statements
+      - id: fix-encoding-pragma
+        args: [--remove]
+      - id: name-tests-test
+  - repo: "https://github.com/pre-commit/pygrep-hooks"
+    rev: "v1.10.0"
+    hooks:
+      - id: python-no-eval
+      - id: python-no-log-warn
+      - id: python-check-mock-methods
+
+  - repo: "https://github.com/asottile/pyupgrade"
+    rev: "v3.15.1"
+    hooks:
+      - id: pyupgrade
+        args:
+          - "--py38-plus"
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.0
+    hooks:
+      - id: autoflake
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.12.0
+    hooks:
+      - id: reorder-python-imports
+        args:
+          - "--py38-plus"
+  - repo: https://github.com/asottile/add-trailing-comma
+    rev: v3.1.0
+    hooks:
+      - id: add-trailing-comma
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.0.4
+    hooks:
+      - id: autopep8
+
+  - repo: "https://github.com/tox-dev/pyproject-fmt"
+    rev: "1.7.0"
+    hooks:
+      - id: pyproject-fmt
+  - repo: "https://github.com/executablebooks/mdformat"
+    rev: "0.7.17"
+    hooks:
+      - id: mdformat
