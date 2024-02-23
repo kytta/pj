@@ -1,6 +1,8 @@
 # pj
 
-`pj` is a tiny project and dependency manager for Python. Think of it as a very opinionated and very lightweight alternative to tools like Hatch, PDM, and Poetry. So lightweight, actually, that it's intended to be included into your repository!
+`pj` is a tiny project and dependency manager for Python. Think of it as a very opinionated and very lightweight
+alternative to tools like Hatch, PDM, and Poetry. So lightweight, actually, that it's intended to be included into your
+repository!
 
 `pj` does everything for you:
 
@@ -14,22 +16,54 @@
 
 ## Why?
 
-For small libraries, I really don't want to force tools like PDM, Hatch, or uv on the casual contributors. Install this, execute that... I'd do everything with setuptools and virtualenv, but the scripts get cumbersome to memorize and execute. `pj` is a shortcut for these tasks.
+For small libraries, I really don't want to force tools like PDM, Hatch, or uv on the casual contributors. Install this,
+execute that... I'd do everything with setuptools and virtualenv, but the scripts get cumbersome to memorize and
+execute. `pj` is a shortcut for these tasks.
 
-## Install
+## Install & use
 
-You don't need pip! Just run this inside your project directory:
+1. Put `pj` in your project root:
+
+   ```shell
+   wget https://codeberg.org/kytta/pj/raw/branch/main/pj.py
+   ```
+
+   If `wget` for some reason does not work in PowerShell:
+
+   ```powershell
+   Invoke-WebRequest https://codeberg.org/kytta/pj/raw/branch/main/pj.py
+   ```
+
+1. That's it!
+
+   ```shell
+   ./pj.py --help
+   ```
+
+1. **Pro tip:** Use aliases to type it faster!
+
+   ```shell
+   alias pj=./pj.py
+   ```
+
+   ```powershell
+   Set-Alias pj .\pj.py
+   ```
+
+1. **Pro tip:** Add it to your repo so that everyone can use it
+
+   ```shell
+   git add pj.py && git commit -m "🎉 added pj"
+   ```
+
+## CLI Reference
+
+Every command ensures that a virtual environment exists and that the packages are up-to-date.
+
+### `pj run`
+
+Runs a command inside virtual environment. For example:
 
 ```shell
-wget -o pj https://codeberg.org/kytta/pj/src/branch/main/pj.py
-chmod +x pj
+pj run ruff check
 ```
-
-If you're on Windows:
-
-```powershell
-Invoke-WebRequest https://codeberg.org/kytta/pj/src/branch/main/pj.py
-```
-
-> **IMPORTANT**
-> `pj` should be at the same place where your pyproject.toml is, no exceptions!

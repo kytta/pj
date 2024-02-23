@@ -3,240 +3,141 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import NoReturn
 from typing import Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import argparse
+
+__version__ = "0.1.0"
+
+VENV_NAME = ".venv"
 
 
-def _warn(msg: str) -> None:
-    sys.stderr.write(f"[WARNING] {msg}\n")
-    sys.stderr.flush()
-
-
-def _err(msg: str) -> None:
-    sys.stderr.write(f"[ERROR] {msg}\n")
+def log(msg: str) -> None:
+    sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
 
 if "NO_COLOR" in os.environ and "FORCE_COLOR" not in os.environ:
-    warn = _warn
-    err = _err
+    _warn_tag = "[WARNING] "
+    _err_tag = "[ERROR] "
 else:
-    def warn(msg) -> None:
-        return _warn(f"\033[33m{msg}\033[0m")
-
-    def err(msg) -> None:
-        return _err(f"\033[31m{msg}\033[0m")
+    _warn_tag = "\033[97;43m WARNING \033[0m "
+    _err_tag = "\033[97;41m ERROR \033[0m "
 
 
-def _get_cache_dir() -> str | None:
-    if sys.platform == "win32":
-        import ctypes
-
-        if hasattr(ctypes, "windll"):
-            buf = ctypes.create_unicode_buffer(1024)
-            # 28 = CSIDL_LOCAL_APPDATA
-            ctypes.windll.shell32.SHGetFolderPathW(None, 28, None, 0, buf)
-
-            # Downgrade to short path name if it has high-bit chars.
-            if any(ord(c) > 255 for c in buf):  # noqa: PLR2004
-                buf2 = ctypes.create_unicode_buffer(1024)
-                if ctypes.windll.kernel32.GetShortPathNameW(
-                        buf.value, buf2, 1024,
-                ):
-                    buf = buf2
-
-            return buf.value
-
-        try:
-            import winreg
-        except ImportError:
-            return os.environ.get("LOCALAPPDATA")
-        else:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
-            )
-            directory, _ = winreg.QueryValueEx(key, "Local AppData")
-            return str(directory)
-    elif sys.platform == "darwin":
-        return os.path.expanduser("~/Library/Caches")
-    else:
-        path = os.environ.get("XDG_CACHE_HOME", "")
-        if not path.strip():
-            path = os.path.expanduser("~/.cache")
-        return path
+def warn(msg: str) -> None:
+    log(_warn_tag + msg)
 
 
-def _get_own_venv_path(fallback_root: str | bytes | os.PathLike) -> str:
-    cache_dir = _get_cache_dir()
-    if cache_dir is None:
-        warn(
-            "Could not find a proper cache directory. "
-            "pj's own venv will live at .pj-venv",
-        )
-        return os.path.join(fallback_root, ".pj-venv")
-
-    return os.path.join(_get_cache_dir(), "pj", "virtualenv")
+def err(msg: str) -> None:
+    log(_err_tag + msg)
 
 
-def _find_root() -> str:
-    we = os.path.dirname(__file__)
+def abort(msg: str, code: int = 1) -> NoReturn:
+    err(msg)
+    raise SystemExit(code)
+
+
+def _get_locations() -> tuple[str, str]:
+    root = os.path.dirname(__file__)
+
+    if os.path.commonpath([root, os.getcwd()]) == root:
+        # cwd is with us or deeper
+        return root, os.path.join(root, VENV_NAME)
 
     root = os.getcwd()
-
-    if os.path.commonpath([we, root]) == we:
-        return we
-
     sysroot = os.path.abspath("/")
-
     while True:
         if "pyproject.toml" in os.listdir(root):
-            return root
+            return root, os.path.join(root, VENV_NAME)
         root = os.path.dirname(root)
         if root == sysroot:
-            m = "Cannot find project root"
-            raise LookupError(m)
+            abort(
+                "Cannot find project root. "
+                "Make sure pj.py is in the same directory with "
+                "pyproject.toml",
+                1,
+            )
 
 
-def _make_venv(path: str | bytes | os.PathLike):
-    try:
-        from virtualenv import cli_run
+def _make_parser() -> argparse.ArgumentParser:
+    import argparse
 
-        cli_run([str(path)])
-    except ImportError:
-        import venv
+    parser = argparse.ArgumentParser(
+        description="A tiny project & dependency manager to take with you",
+    )
+    parser.add_argument(
+        "-V", "--version",
+        action="version",
+        version=__version__,
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-        venv.create(path, symlinks=True, with_pip=True)
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run an executable inside a virtual environment",
+    )
+    run_parser.add_argument(
+        "program",
+        type=str,
+        help="program to run",
+    )
+
+    return parser
 
 
-def _ensure_venv(venv_path: str | bytes | os.PathLike) -> None:
-    if os.path.isdir(venv_path) and os.path.exists(
-            os.path.join(venv_path, "pyvenv.cfg"),
-    ):
-        return
+def _run(
+        project_venv: str | bytes | os.PathLike,
+        program: str,
+        rest: Sequence[str],
+) -> int:
+    command = (
+        program,
+        *rest,
+    )
 
-    _make_venv(venv_path)
+    activator = os.path.join(project_venv, "bin", "activate_this.py")
+    with open(activator) as f:
+        exec(f.read(), {"__file__": activator})
 
+    import shutil
+    executable = shutil.which(program)
+    if executable is None:
+        err(f"{program}: could not find executable")
+        return 1
 
-def _run_in_venv(
-        venv_path: str | bytes | os.PathLike,
-        executable: str,
-        *args: str,
-) -> None:
     import subprocess
 
-    subprocess.check_call(
-        [
-            executable,
-            *args,
-        ],
-        executable=os.path.join(venv_path, "bin", executable),
-    )
-
-
-def _ensure_own_requirements(venv_path: str | bytes | os.PathLike) -> None:
-    _run_in_venv(
-        venv_path,
-        "pip",
-        "install",
-        "--upgrade",
-        "pip",
-        "pip-tools",
-        "shellingham",
-        "virtualenv",
-    )
-
-
-def main(argv: Sequence[str] | None = None) -> None:
     try:
-        project_root = _find_root()
-    except LookupError:
-        err(
-            "Cannot find project root. "
-            "Make sure pj.py is in the same directory with pyproject.toml",
+        completed = subprocess.run(
+            command,
+            executable=executable,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            check=True,
         )
-        exit(1)
+    except subprocess.CalledProcessError as exc:
+        err(f"'{program}' exited with code {exc.returncode}")
+        return exc.returncode
 
-    project_venv = os.path.join(project_root, ".venv")
+    return completed.returncode
 
-    venv_path = _get_own_venv_path(project_root)
 
-    def launch_in_own_venv():
-        try:
-            _ensure_venv(venv_path)
-        except Exception as exc:
-            err(f"Could not create virtual environment: {exc!s}")
+def main(_argv: Sequence[str] | None = None) -> int:
+    argv: Sequence[str] = _argv if _argv is not None else sys.argv[1:]
+    args, rest = _make_parser().parse_known_args(argv)
 
-        _ensure_own_requirements(venv_path)
+    project_root, project_venv = _get_locations()
 
-        os.execv(  # noqa: S606
-            os.path.join(venv_path, "bin", "python"), [
-                "pj",
-                __file__,
-                *(argv or []),
-            ],
-        )
+    if args.command == "run":
+        return _run(project_venv, args.program, rest)
 
-    if sys.prefix != sys.base_prefix:
-        project_venv = os.path.join(project_root, ".venv")
-
-        if sys.prefix != venv_path:
-            if sys.prefix == project_venv:
-                print("we are in project venv")
-                launch_in_own_venv()
-            else:
-                err("You are in a different virtualenv. Deactivate it first")
-                sys.exit(1)
-        else:
-            print("we are in OUR OWN venv")
-
-            import argparse
-            parser = argparse.ArgumentParser(
-                description="A tiny project & dependency manager to take with you", )
-            subparsers = parser.add_subparsers(dest="command")
-            add_cmd = subparsers.add_parser("add", help="Add a dependency")
-            add_cmd.add_argument(
-                "--group", "-G", action="store", const="dev", dest="group",
-                help="Specify the target dependency group to add into", )
-            add_cmd.add_argument(
-                "--dev",
-                "-D",
-                action="store",
-                const="dev",
-                dest="group",
-                help="Add packages into dev dependencies. Equivalent to `--group dev`",
-            )
-
-            subparsers.add_parser(
-                "shell", help="Spawns a shell within the virtual environment.",
-            )
-
-            args = parser.parse_args(argv)
-
-            try:
-                project_root = _find_root()
-            except LookupError:
-                err("Cannot find project root. Make sure pj.py is in the same directory with pyproject.toml")
-                sys.exit(1)
-
-            if args.command == "add":
-                if args.group is None:
-                    raise NotImplementedError
-                raise NotImplementedError
-
-            project_venv = os.path.join(project_root, ".venv")
-
-            if args.command == "shell":
-                if getattr(sys, "real_prefix", sys.prefix) == project_venv:
-                    sys.exit(0)
-
-                raise NotImplementedError
-
-        sys.exit(0)
-    else:
-        print("we are NOT in virtualenv")
-
-        launch_in_own_venv()
+    abort("You... shouldn't be here", 42)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
