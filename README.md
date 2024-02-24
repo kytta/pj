@@ -60,6 +60,14 @@ execute. `pj` is a shortcut for these tasks.
 
 Every command ensures that a virtual environment exists and that the packages are up-to-date.
 
+### `pj build`
+
+Build your project using `build`. Your project should use a [PEP 517](https://peps.python.org/pep-0517/)-compliant frontend, like flit, Hatchling, pdm-backend, poetry-core, setuptools, etc. The command supports all commands of `build`:
+
+```shell
+pj build --wheel --outdir dist .
+```
+
 ### `pj run`
 
 Runs a command inside virtual environment. For example:
