@@ -239,6 +239,10 @@ def main(_argv: Sequence[str] | None = None) -> int:
         )
 
     if args.command == "run":
+        os.environ["PATH"] = os.pathsep.join([
+            os.path.join(project_venv, 'bin'),
+            *os.environ.get("PATH", "").split(os.pathsep)
+        ])
         return execute(args.program, rest)
 
     abort("You... shouldn't be here", 42)
