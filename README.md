@@ -25,13 +25,13 @@ execute. `pj` is a shortcut for these tasks.
 1. Put `pj` in your project root:
 
    ```shell
-   wget https://codeberg.org/kytta/pj/raw/branch/main/pj.py
+   wget https://raw.githubusercontent.com/kytta/pj/main/pj.py
    ```
 
    If `wget` for some reason does not work in PowerShell:
 
    ```powershell
-   Invoke-WebRequest https://codeberg.org/kytta/pj/raw/branch/main/pj.py
+   Invoke-WebRequest https://raw.githubusercontent.com/kytta/pj/main/pj.py
    ```
 
 1. That's it!
