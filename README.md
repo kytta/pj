@@ -1,3 +1,11 @@
+# pj is now on Codeberg
+
+I've had enough with GitHub. This repository is now on Codeberg: https://codeberg.org/kytta/pj.git
+
+The repository on GitHub will stay archived (read-only) for a few months before I delete it for good.
+
+<details><summary>Previous README</summary>
+
 # pj
 
 `pj` is a tiny project and dependency manager for Python. Think of it as a very opinionated and very lightweight
@@ -75,3 +83,5 @@ Runs a command inside virtual environment. For example:
 ```shell
 pj run ruff check
 ```
+
+</details>
